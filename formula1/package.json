@@ -1,15 +1,17 @@
 {
-  "name": "formula-one",
+  "name": "formula-one-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "API de Fórmula 1 com Fastify",
+  "main": "dist/server.js",
+  "type": "module",
   "scripts": {
-    "dist": "tsup src",
-    "start:dev": "tsx --env-file=.env src/server.ts",
-    "start:watch": "tsx watch --env-file=.env  src/server.ts",
-    "start:dist": "npm run dist && node dist/src/index.js"
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsup src --out-dir dist",
+    "start:prod": "node dist/server.js",
+    "check": "tsc --noEmit"
   },
-  "keywords": [],
+  "keywords": ["fastify", "api", "formula1", "typescript"],
   "author": "",
   "license": "ISC",
   "devDependencies": {
