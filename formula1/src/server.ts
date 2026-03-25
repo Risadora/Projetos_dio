@@ -1,14 +1,30 @@
-
-import fastify from "fastify";
+import Fastify from "fastify";
 import cors from "@fastify/cors";
 
-const server = fastify({ logger: true });
-
-server.register(cors, {
-  origin: "*",
+const server = Fastify({
+  logger: true,
 });
 
-const teams = [
+// Plugins
+await server.register(cors, {
+  origin: true,
+});
+
+// Tipos
+interface Team {
+  id: number;
+  name: string;
+  base: string;
+}
+
+interface Driver {
+  id: number;
+  name: string;
+  team: string;
+}
+
+// Dados (mantidos)
+const teams: Team[] = [
   { id: 1, name: "McLaren", base: "Woking, United Kingdom" },
   { id: 2, name: "Mercedes", base: "Brackley, United Kingdom" },
   { id: 3, name: "Red Bull Racing", base: "Milton Keynes, United Kingdom" },
@@ -23,42 +39,101 @@ const teams = [
   { id: 12, name: "Scuderia Toro Rosso", base: "Faenza, Italy" },
 ];
 
-const drivers = [
+const drivers: Driver[] = [
   { id: 1, name: "Max Verstappen", team: "Red Bull Racing" },
   { id: 2, name: "Lewis Hamilton", team: "Ferrari" },
-  { id: 2, name: "Lando Norris", team: "McLaren" },
+  { id: 3, name: "Lando Norris", team: "McLaren" }, // corrigido
 ];
 
-server.get("/teams", async (request, response) => {
-  response.type("application/json").code(200);
-  return { teams };
-});
-
-server.get("/drivers", async (request, response) => {
-  response.type("application/json").code(200);
-  return { drivers };
-});
-
-interface DriverParams {
-  id: string;
+// Função utilitária
+function findById<T extends { id: number }>(list: T[], id: number): T | undefined {
+  return list.find((item) => item.id === id);
 }
 
-server.get<{ Params: DriverParams }>(
+// Rotas
+server.get("/teams", async () => {
+  return {
+    count: teams.length,
+    data: teams,
+  };
+});
+
+server.get("/drivers", async () => {
+  return {
+    count: drivers.length,
+    data: drivers,
+  };
+});
+
+server.get<{ Params: { id: string } }>(
   "/drivers/:id",
-  async (request, response) => {
-    const id = parseInt(request.params.id);
-    const driver = drivers.find((d) => d.id === id);
+  async (request, reply) => {
+    const id = Number(request.params.id);
+
+    if (!id) {
+      return reply.code(400).send({ error: "Invalid ID" });
+    }
+
+    const driver = findById(drivers, id);
 
     if (!driver) {
-      response.type("application/json").code(404);
-      return { message: "Driver Not Found" };
-    } else {
-      response.type("application/json").code(200);
-      return { driver };
+      return reply.code(404).send({ error: "Driver not found" });
     }
+
+    return { data: driver };
   }
 );
 
-server.listen({ port: 3333 }, () => {
-  console.log("Server init");
-});
+// Nova rota (melhoria)
+server.get<{ Params: { id: string } }>(
+  "/teams/:id",
+  async (request, reply) => {
+    const id = Number(request.params.id);
+
+    if (!id) {
+      return reply.code(400).send({ error: "Invalid ID" });
+    }
+
+    const team = findById(teams, id);
+
+    if (!team) {
+      return reply.code(404).send({ error: "Team not found" });
+    }
+
+    return { data: team };
+  }
+);
+
+// Filtro por equipe (nova feature)
+server.get<{ Querystring: { team?: string } }>(
+  "/drivers/search",
+  async (request) => {
+    const { team } = request.query;
+
+    if (!team) {
+      return { data: drivers };
+    }
+
+    const filtered = drivers.filter((d) =>
+      d.team.toLowerCase().includes(team.toLowerCase())
+    );
+
+    return {
+      count: filtered.length,
+      data: filtered,
+    };
+  }
+);
+
+// Start
+const start = async () => {
+  try {
+    await server.listen({ port: 3333 });
+    console.log("🚀 Server rodando em http://localhost:3333");
+  } catch (err) {
+    server.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();
